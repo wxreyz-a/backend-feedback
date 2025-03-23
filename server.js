@@ -12,8 +12,11 @@ app.use(express.json());
 // Connexion à PostgreSQL
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false }
+  ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes("localhost")
+  ? false
+  : { rejectUnauthorized: false }
 });
+
 
 // Route POST : Enregistrer un feedback
 app.post("/api/feedback", async (req, res) => {
