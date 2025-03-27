@@ -1,9 +1,9 @@
-require("dotenv").config();
+require('dotenv').config();  // Charger les variables d'environnement depuis le fichier .env
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const Stripe = require("stripe");
-const stripe = Stripe(process.env.sk_test_51R7CElPns5d1SnXfEqIZknnClsDNaOHUSTUOcpePXCueKMBAI5wn4Y9EY0JIPuGiMt6pstrjSN4LaJyIKsFuCNDo00lnZ04cbe); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Utilisation de PORT ou 5000 par défaut
@@ -52,6 +52,7 @@ app.get("/api/feedback", async (req, res) => {
 });
 
 // Nouvelle route pour le paiement avec Stripe
+console.log('Stripe secret key:', process.env.STRIPE_SECRET_KEY);
 app.post("/pay", async (req, res) => {
   const { id, amount } = req.body; // id est le PaymentMethod ID, amount est le montant en centimes (ex: 2000 pour 20€)
 
