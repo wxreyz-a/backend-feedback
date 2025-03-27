@@ -2,16 +2,16 @@ require("dotenv").config();
 const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
+const Stripe = require("stripe");
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
 
 const app = express();
-const PORT = process.env.PORT || 5000;
+const PORT = process.env.PORT || 5000; // Utilisation de PORT ou 5000 par défaut
 
 app.use(cors());
 app.use(express.json());
 
 // Configuration du pool de connexion à PostgreSQL
-// Si DATABASE_URL contient "localhost", SSL est désactivé (pour le développement local)
-// Sinon, pour Render, SSL est activé avec { rejectUnauthorized: false }
 const pool = new Pool({
   connectionString: process.env.DATABASE_URL,
   ssl: process.env.DATABASE_URL && process.env.DATABASE_URL.includes("localhost")
@@ -51,6 +51,37 @@ app.get("/api/feedback", async (req, res) => {
   }
 });
 
+// Nouvelle route pour le paiement avec Stripe
+app.post("/pay", async (req, res) => {
+  const { id, amount } = req.body; // id est le PaymentMethod ID, amount est le montant en centimes (ex: 2000 pour 20€)
+
+  if (!id || !amount) {
+    return res.status(400).json({ success: false, error: "id et amount sont requis." });
+  }
+
+  try {
+    // Créer un PaymentIntent avec Stripe
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount, // Montant en centimes (ex: 2000 pour 20€)
+      currency: "eur", // La devise, ici en EUR
+      payment_method: id, // ID du PaymentMethod envoyé par le front-end
+      confirm: true, // Confirmer le paiement immédiatement
+    });
+
+    // Vérifie le statut du paiement
+    if (paymentIntent.status === 'succeeded') {
+      res.json({ success: true, message: "Paiement réussi !" });
+    } else {
+      res.status(500).json({ success: false, error: "Échec du paiement" });
+    }
+
+  } catch (error) {
+    console.error("Erreur de paiement :", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Lancer le serveur sur le port spécifié
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
