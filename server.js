@@ -3,7 +3,7 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const Stripe = require("stripe");
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
+const stripe = Stripe(process.env.sk_test_51R7CElPns5d1SnXfEqIZknnClsDNaOHUSTUOcpePXCueKMBAI5wn4Y9EY0JIPuGiMt6pstrjSN4LaJyIKsFuCNDo00lnZ04cbe); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
 
 const app = express();
 const PORT = process.env.PORT || 5000; // Utilisation de PORT ou 5000 par défaut
