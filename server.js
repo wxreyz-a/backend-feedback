@@ -3,10 +3,18 @@ const express = require("express");
 const cors = require("cors");
 const { Pool } = require("pg");
 const Stripe = require("stripe");
-const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajoute ta clé secrète Stripe ici (assure-toi qu'elle soit dans .env)
+const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajouter ta clé secrète Stripe ici
+const admin = require("firebase-admin"); // Importer Firebase Admin SDK
+const firebaseServiceAccount = require("./path_to_your_firebase_service_account_key.json"); // Remplacer par le chemin du fichier de clé de service Firebase
+
+// Initialiser Firebase Admin SDK
+admin.initializeApp({
+  credential: admin.credential.cert(firebaseServiceAccount)
+});
+const db = admin.firestore(); // Accéder à Firestore
 
 const app = express();
-const PORT = process.env.PORT || 5000; // Utilisation de PORT ou 5000 par défaut
+const PORT = process.env.PORT || 5000;
 
 app.use(cors());
 app.use(express.json());
@@ -52,32 +60,61 @@ app.get("/api/feedback", async (req, res) => {
 });
 
 // Nouvelle route pour le paiement avec Stripe
-console.log('Stripe secret key:', process.env.STRIPE_SECRET_KEY);
 app.post("/pay", async (req, res) => {
-  const { id, amount } = req.body; // id est le PaymentMethod ID, amount est le montant en centimes (ex: 2000 pour 20€)
+  const { userId, paymentMethodId } = req.body; // userId est l'ID utilisateur Firebase, paymentMethodId est l'ID de méthode de paiement
 
-  if (!id || !amount) {
-    return res.status(400).json({ success: false, error: "id et amount sont requis." });
+  if (!userId || !paymentMethodId) {
+    return res.status(400).json({ success: false, error: "userId et paymentMethodId sont requis." });
   }
 
   try {
     // Créer un PaymentIntent avec Stripe
     const paymentIntent = await stripe.paymentIntents.create({
-      amount, // Montant en centimes (ex: 2000 pour 20€)
+      amount: 1999, // Montant en centimes (ex: 2000 pour 20€)
       currency: "eur", // La devise, ici en EUR
-      payment_method: id, // ID du PaymentMethod envoyé par le front-end
+      payment_method: paymentMethodId, // ID du PaymentMethod envoyé par le front-end
       confirm: true, // Confirmer le paiement immédiatement
     });
 
-    // Vérifie le statut du paiement
+    // Vérifier le statut du paiement
     if (paymentIntent.status === 'succeeded') {
-      res.json({ success: true, message: "Paiement réussi !" });
+      // Paiement réussi, mettre à jour l'utilisateur dans Firestore
+      await db.collection("users").doc(userId).set({
+        paid: true,
+        paymentDate: new Date(),
+      }, { merge: true });
+
+      res.json({ success: true, message: "Paiement réussi et utilisateur enregistré comme ayant payé !" });
     } else {
       res.status(500).json({ success: false, error: "Échec du paiement" });
     }
 
   } catch (error) {
     console.error("Erreur de paiement :", error);
+    res.status(500).json({ success: false, error: error.message });
+  }
+});
+
+// Route GET : Vérifier si l'utilisateur a payé
+app.get("/check-payment/:userId", async (req, res) => {
+  const { userId } = req.params;
+
+  try {
+    const userDoc = await db.collection("users").doc(userId).get();
+
+    if (userDoc.exists) {
+      const userData = userDoc.data();
+      if (userData.paid) {
+        return res.json({ success: true, message: "Utilisateur ayant payé." });
+      } else {
+        return res.json({ success: false, message: "Utilisateur non payé." });
+      }
+    } else {
+      return res.status(404).json({ success: false, message: "Utilisateur non trouvé." });
+    }
+
+  } catch (error) {
+    console.error("Erreur de vérification de paiement :", error);
     res.status(500).json({ success: false, error: error.message });
   }
 });
