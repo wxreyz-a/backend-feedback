@@ -5,12 +5,15 @@ const { Pool } = require("pg");
 const Stripe = require("stripe");
 const stripe = Stripe(process.env.STRIPE_SECRET_KEY); // Ajouter ta clé secrète Stripe ici
 const admin = require("firebase-admin"); // Importer Firebase Admin SDK
-const firebaseServiceAccount = require("./path_to_your_firebase_service_account_key.json"); // Remplacer par le chemin du fichier de clé de service Firebase
 
-// Initialiser Firebase Admin SDK
+// Charger la clé Firebase depuis la variable d'environnement
+const firebaseServiceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT_KEY); // Lire la clé depuis la variable d'environnement
+
+// Initialiser Firebase Admin SDK avec la clé de service
 admin.initializeApp({
   credential: admin.credential.cert(firebaseServiceAccount)
 });
+
 const db = admin.firestore(); // Accéder à Firestore
 
 const app = express();
@@ -123,4 +126,3 @@ app.get("/check-payment/:userId", async (req, res) => {
 app.listen(PORT, () => {
   console.log(`Serveur démarré sur le port ${PORT}`);
 });
-
