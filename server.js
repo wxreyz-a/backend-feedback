@@ -64,39 +64,39 @@ app.get("/api/feedback", async (req, res) => {
 
 // Nouvelle route pour le paiement avec Stripe
 app.post("/pay", async (req, res) => {
-  const { userId, paymentMethodId } = req.body; // userId est l'ID utilisateur Firebase, paymentMethodId est l'ID de méthode de paiement
-
+  const { userId, paymentMethodId } = req.body;
   if (!userId || !paymentMethodId) {
     return res.status(400).json({ success: false, error: "userId et paymentMethodId sont requis." });
   }
 
   try {
-    // Créer un PaymentIntent avec Stripe
     const paymentIntent = await stripe.paymentIntents.create({
-      amount: 1999, // Montant en centimes (ex: 2000 pour 20€)
-      currency: "eur", // La devise, ici en EUR
-      payment_method: paymentMethodId, // ID du PaymentMethod envoyé par le front-end
-      confirm: true, // Confirmer le paiement immédiatement
+      amount: 1999,
+      currency: "eur",
+      payment_method: paymentMethodId,
+      confirm: true,
     });
 
-    // Vérifier le statut du paiement
     if (paymentIntent.status === 'succeeded') {
-      // Paiement réussi, mettre à jour l'utilisateur dans Firestore
       await db.collection("users").doc(userId).set({
         paid: true,
         paymentDate: new Date(),
       }, { merge: true });
 
-      res.json({ success: true, message: "Paiement réussi et utilisateur enregistré comme ayant payé !" });
+      return res.json({ success: true, message: "Paiement réussi !" });
+    } else if (paymentIntent.status === 'requires_action') {
+      // En cas de besoin d'action supplémentaire (ex. 3D Secure)
+      return res.json({ success: false, error: "Authentification supplémentaire requise." });
     } else {
-      res.status(500).json({ success: false, error: "Échec du paiement" });
+      return res.status(500).json({ success: false, error: "Échec du paiement." });
     }
 
   } catch (error) {
     console.error("Erreur de paiement :", error);
-    res.status(500).json({ success: false, error: error.message });
+    return res.status(500).json({ success: false, error: error.message });
   }
 });
+
 
 // Route GET : Vérifier si l'utilisateur a payé
 app.get("/check-payment/:userId", async (req, res) => {
